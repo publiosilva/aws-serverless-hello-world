@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS Serverless Hello World
+
+Transform:
+  - AWS::Serverless-2016-10-31
+
+Parameters:
+  UserPoolArn:
+    Type: String
+  Version:
+    Type: String
+    Default: v1
+
+Resources:
+  AWSServerlessHelloWorldApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: AWSServerlessHelloWorldApi
+      StageName: !Ref Version
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Ref UserPoolArn
+            Identity:
+              Header: Authorization
+        AddDefaultAuthorizerToCorsPreflight: False
+
+  sayHelloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: hello-world.sayHello
+      Runtime: nodejs10.x
+      MemorySize: 128
+      Timeout: 100
+      Description: Say Hello World
+      Events:
+        SayHelloResource:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AWSServerlessHelloWorldApi
+            Path: hello-world
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  sayHelloLambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - AWSServerlessHelloWorldApi
+      - sayHelloFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref sayHelloFunction
+      Principal: apigateway.amazonaws.com
